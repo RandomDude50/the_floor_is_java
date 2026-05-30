@@ -19,7 +19,7 @@ public class StartScreen {
         overlay = new Rectangle(gw, gh);
         overlay.setFill(Color.web("#000000", 0.82));
 
-        Text title = new Text("THE FLOOR IS LAVA!");
+        Text title = new Text("THE FLOOR IS JAVA!");
         title.setFont(Font.font("Arial", FontWeight.BOLD, 54));
         title.setFill(Color.web("#FF4400"));
         title.setStroke(Color.web("#880000"));

@@ -16,43 +16,42 @@ import java.util.function.Consumer;
 
 public class Controller {
 
-    private final Pane          root;
-    private final GameConfig    config;
+    private final Pane            root;
+    private final GameConfig      config;
     private final ScoreRepository scoreRepo;
 
-    private Movable         player;
-    private HazardMap       hazardMap;
-    private GameLoop        engine;
-    private ScoreTracker    scoreTracker;
-    private LivesManager    livesManager;
-    private PowerUpManager  powerUpManager;
-    private ParticleSystem  particles;
+    private Movable        player;
+    private HazardMap      hazardMap;
+    private GameLoop       engine;
+    private ScoreTracker   scoreTracker;
+    private LivesManager   livesManager;
+    private PowerUpManager powerUpManager;
+    private ParticleSystem particles;
+    private PauseScreen    pauseScreen;
+    private StartScreen    startScreen;
 
-    private List<Updatable>          updatables;
-    private List<GameEventListener>  listeners;
+    private List<Updatable>         updatables;
+    private List<GameEventListener> listeners;
 
     private AnimationTimer gameLoopTimer;
 
-    // stati del gioco
     private enum GameState { START, PLAYING, PAUSED, GAME_OVER }
     private GameState state = GameState.START;
 
-    private int        highScore;
-    private PauseScreen pauseScreen;
+    private int     highScore;
+    private boolean sessionRecord = false; // rimane true una volta battuto il record
 
     public Controller(Pane root, GameConfig config, ScoreRepository scoreRepo) {
         this.root      = root;
         this.config    = config;
         this.scoreRepo = scoreRepo;
         this.highScore = scoreRepo.load();
-
-        setupKeyHandlers();
         buildGame();
-        showStartScreen();
+        setupGlobalKeyHandlers();
     }
 
     // ------------------------------------------------------------------ //
-    //  Setup
+    //  Costruzione del gioco
     // ------------------------------------------------------------------ //
 
     private void buildGame() {
@@ -62,15 +61,16 @@ public class Controller {
 
         player    = new Player(config.spawnPosition(), config);
         hazardMap = new Lava(config.gameWidth(), config.gameHeight());
-
         particles = new ParticleSystem(config.gameWidth(), config.gameHeight());
+
         ((Lava)   hazardMap).setParticleEmitter(particles);
         ((Player) player)   .setParticleEmitter(particles);
 
         engine         = new Engine(player, config, input);
         scoreTracker   = new ScoreTracker();
         livesManager   = new LivesManager(config.initialLives());
-        powerUpManager = new PowerUpManager(root, config, player, (LavaClearer) hazardMap, hazardMap);
+        powerUpManager = new PowerUpManager(root, config, player,
+                (LavaClearer) hazardMap, hazardMap);
 
         updatables = List.of(scoreTracker, powerUpManager, particles);
 
@@ -88,33 +88,25 @@ public class Controller {
 
         root.setOnKeyPressed(e -> {
             handleGlobalKeys(e.getCode());
-            input.keyPressed(e.getCode().getCode());
+            if (state == GameState.PLAYING) input.keyPressed(e.getCode().getCode());
         });
         root.setOnKeyReleased(e -> input.keyReleased(e.getCode().getCode()));
         root.setFocusTraversable(true);
         root.requestFocus();
     }
 
-    private void setupKeyHandlers() {
-        // handler globale sempre attivo (non dipende dall'InputManager)
-    }
+    private void setupGlobalKeyHandlers() { /* gestito in buildGame */ }
 
     private void handleGlobalKeys(KeyCode code) {
         switch (state) {
-            case START -> {
-                if (code == KeyCode.SPACE) startPlaying();
-            }
-            case PLAYING -> {
-                if (code == KeyCode.ESCAPE) pause();
-                if (code == KeyCode.R)      restart();
-            }
-            case PAUSED -> {
+            case START     -> { if (code == KeyCode.SPACE)  startPlaying(); }
+            // FIX: R bloccato durante PLAYING — solo in pausa o game over
+            case PLAYING   -> { if (code == KeyCode.ESCAPE) pause(); }
+            case PAUSED    -> {
                 if (code == KeyCode.ESCAPE) resume();
                 if (code == KeyCode.R)      restart();
             }
-            case GAME_OVER -> {
-                if (code == KeyCode.R)      restart();
-            }
+            case GAME_OVER -> { if (code == KeyCode.R)      restart(); }
         }
     }
 
@@ -122,17 +114,19 @@ public class Controller {
     //  Transizioni di stato
     // ------------------------------------------------------------------ //
 
-    private void showStartScreen() {
-        state = GameState.START;
-        new StartScreen(root, config.gameWidth(), config.gameHeight());
+    public void start() {
+        state       = GameState.START;
+        startScreen = new StartScreen(root, config.gameWidth(), config.gameHeight());
     }
 
     private void startPlaying() {
-        // rimuove gli ultimi 2 nodi aggiunti da StartScreen (overlay + panel)
-        int size = root.getChildren().size();
-        if (size >= 2) root.getChildren().remove(size - 2, size);
-        state = GameState.PLAYING;
+        if (startScreen != null) { startScreen.hide(root); startScreen = null; }
+        state         = GameState.PLAYING;
+        sessionRecord = false;
+        beginGameSession();
+    }
 
+    private void beginGameSession() {
         long now = System.currentTimeMillis();
         engine.start();
         scoreTracker.start(now);
@@ -145,53 +139,67 @@ public class Controller {
         state = GameState.PAUSED;
         engine.stop();
         if (gameLoopTimer != null) gameLoopTimer.stop();
+        scoreTracker.onPause(System.currentTimeMillis()); // FIX: ferma il timer
         pauseScreen.show();
     }
 
     private void resume() {
         state = GameState.PLAYING;
         pauseScreen.hide();
+        scoreTracker.onResume(System.currentTimeMillis()); // FIX: riprende il timer
         engine.start();
         startGameLoop();
     }
 
     private void restart() {
-        state = GameState.PLAYING;
         if (gameLoopTimer != null) gameLoopTimer.stop();
         engine.stop();
+        state         = GameState.PLAYING;
+        sessionRecord = false;
         buildGame();
-        startPlaying();
+        beginGameSession(); // FIX: non chiama startPlaying() — non rimuove nodi StartScreen
     }
 
     // ------------------------------------------------------------------ //
     //  Game loop
     // ------------------------------------------------------------------ //
 
-    public void start() {
-        // il gioco parte dalla start screen, non automaticamente
-    }
-
     private void startGameLoop() {
         gameLoopTimer = new AnimationTimer() {
             @Override public void handle(long ignored) {
                 if (state != GameState.PLAYING) return;
-                long currentTime = System.currentTimeMillis();
+                long now = System.currentTimeMillis();
 
-                hazardMap.update(currentTime, player.getPosition());
-                updatables.forEach(u -> u.update(currentTime));
+                hazardMap.update(now, player.getPosition());
+                updatables.forEach(u -> u.update(now));
 
-                ScoreSnapshot snap   = scoreTracker.snapshot();
-                boolean       newRec = snap.score() > highScore;
-                if (newRec) highScore = snap.score();
+                // Moonwalk: notifica ScoreTracker
+                scoreTracker.setMoonwalkActive(player.isMoonwalking());
 
-                fire(l -> l.onScoreUpdated(snap, highScore, newRec));
-                fire(l -> l.onPowerUpStatus(powerUpManager.activeStatusLabel()));
+                ScoreSnapshot snap = scoreTracker.snapshot();
+
+                // FIX: sessionRecord rimane true per tutta la partita una volta battuto
+                if (snap.score() > highScore) {
+                    highScore     = snap.score();
+                    sessionRecord = true;
+                }
+
+                fire(l -> l.onScoreUpdated(snap, highScore, sessionRecord));
+                fire(l -> l.onPowerUpStatus(buildStatusLabel()));
 
                 if (!player.isInvincible() && hazardMap.isHazardous(player.getPosition()))
                     loseLife();
             }
         };
         gameLoopTimer.start();
+    }
+
+    private String buildStatusLabel() {
+        String powerUp   = powerUpManager.activeStatusLabel();
+        String moonwalk  = player.isMoonwalking() ? "MOONWALK!" : "";
+        if (powerUp.isEmpty()) return moonwalk;
+        if (moonwalk.isEmpty()) return powerUp;
+        return powerUp + "  " + moonwalk;
     }
 
     private void loseLife() {
@@ -205,6 +213,7 @@ public class Controller {
             scoreRepo.save(snap.score());
             fire(l -> l.onGameOver(snap, highScore, newRec));
             engine.stop();
+            if (gameLoopTimer != null) gameLoopTimer.stop();
         } else {
             player.setPosition(config.spawnPosition());
             player.activateInvincibility();

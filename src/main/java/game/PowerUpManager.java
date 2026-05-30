@@ -62,7 +62,7 @@ public class PowerUpManager implements Updatable {
     }
 
     private long generateClearInterval() {
-        return 90_000 + rng.nextInt(20_001); // 90–110 secondi
+        return 75_000 + rng.nextInt(20_001); // 75–95 secondi
     }
 
     private void spawnRegular() {

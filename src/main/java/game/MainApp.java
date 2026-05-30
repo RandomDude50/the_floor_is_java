@@ -39,7 +39,7 @@ public class MainApp extends Application {
         ScoreRepository repo = new FileScoreRepository();
         controller = new Controller(gamePane, config, repo);
 
-        stage.setTitle("The Floor is Lava!");
+        stage.setTitle("The Floor is Java!");
         stage.setScene(new Scene(frame, 1280, 720));
         stage.setResizable(false);
         stage.show();
@@ -47,7 +47,7 @@ public class MainApp extends Application {
     }
 
     private HBox buildHeader() {
-        var title = UIFactory.inlineText("  THE FLOOR IS LAVA!  ", 20, GameColors.GAME_OVER_TITLE);
+        var title = UIFactory.inlineText("  THE FLOOR IS JAVA!  ", 20, GameColors.GAME_OVER_TITLE);
         title.setStroke(GameColors.LIVES);
         title.setStrokeWidth(1);
 

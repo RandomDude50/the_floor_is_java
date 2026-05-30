@@ -10,16 +10,18 @@ import game.model.Position;
  */
 
 public interface Movable extends GameEntity {
-    void   moveUp();
-    void   moveDown();
-    void   moveLeft();
-    void   moveRight();
-    void   setPosition(Position pos);
-    double getRadius();
+    void    moveUp();
+    void    moveDown();
+    void    moveLeft();
+    void    moveRight();
+    void    setPosition(Position pos);
+    void    setMovementModifier(double modifier); // per malus diagonale
+    double  getRadius();
     boolean isInvincible();
     boolean isSpeedBoosted();
-    void   activateInvincibility();
-    void   activateSpeedBoost();
-    void   activateShield();
+    boolean isMoonwalking();                      // per bonus moonwalk
+    void    activateInvincibility();
+    void    activateSpeedBoost();
+    void    activateShield();
     javafx.scene.Node getNode();
 }

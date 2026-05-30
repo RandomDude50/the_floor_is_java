@@ -13,6 +13,7 @@ public class MovementSystem {
      * Mappa dichiarativa tasto → azione sul Movable.
      * Aggiungere un nuovo tasto = una riga, zero modifiche al resto.
      */
+
     private static final Map<Integer, Consumer<Movable>> KEY_ACTIONS = Map.of(
             87, Movable::moveUp,
             65, Movable::moveLeft,
@@ -26,6 +27,12 @@ public class MovementSystem {
     }
 
     public void handleInput(Movable entity, InputManager input) {
+        boolean h = input.isPressed(65) || input.isPressed(68);
+        boolean v = input.isPressed(87) || input.isPressed(83);
+
+        // Malus diagonale: -10% velocità quando si preme sia orizzontale che verticale
+        entity.setMovementModifier(h && v ? 0.9 : 1.0);
+
         KEY_ACTIONS.forEach((key, action) -> {
             if (input.isPressed(key)) action.accept(entity);
         });
