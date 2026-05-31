@@ -1,21 +1,11 @@
-# 🌋 The Floor is Lava!
 
-> **A 2D survival game engineered with Java 21 + JavaFX 21, designed as a showcase of modern Object-Oriented design principles.**
-> Developed with AI-assisted coding tools (Claude by Anthropic) for the *Programmazione ad Oggetti* course — DIEF, Università di Modena e Reggio Emilia.
+# 🌋 The Floor is Java! 🌋
 
----
+<br>
 
-## 📸 Screenshots
+## Project Mission
 
-| Gameplay | Game Over |
-|----------|-----------|
-| ![gameplay](docs/gameplay.png) | ![gameover](docs/gameover.png) |
-
----
-
-## 🎯 Project Mission
-
-**The Floor is Lava!** is more than a game — it is an architectural exercise.
+**The Floor is Java!** is more than a game — it is an architectural exercise.
 
 The primary goal was to build a system so thoroughly abstracted that:
 
@@ -27,10 +17,12 @@ This is not accidental. It is the result of a rigorous, iterative application of
 
 ---
 
-## 🕹️ Game Overview
+<br>
+
+## Game Overview
 
 ### Objective
-Survive as long as possible on a map that is progressively consumed by lava. The longer you survive, the higher your score.
+Survive as long as possible on a map that is progressively consumed by lava. The longer you survive — and the more cleverly you move — the higher your score.
 
 ### Controls
 | Key | Action |
@@ -38,29 +30,39 @@ Survive as long as possible on a map that is progressively consumed by lava. The
 | `W A S D` | Move |
 | `SPACE` | Start game |
 | `ESC` | Pause / Resume |
-| `R` | Restart |
+| `R` | Restart *(only while paused or after game over)* |
 
-### Mechanics
+<br>
+
+### Mechanics & Features
 | Feature | Description |
 |---------|-------------|
-| 🌋 **Spreading Lava** | Lava expands organically tile-by-tile, with increasing difficulty over time |
+| 🌋 **Spreading Lava** | Lava expands organically tile-by-tile from random patches, with difficulty increasing over time |
 | 💀 **3 Lives** | Each time lava touches the player, a life is lost |
 | 🛡️ **Respawn Shield** | 3 seconds of blinking invincibility after each death |
 | ⚡ **Speed Power-up** | +60% movement speed for 5 seconds |
 | 🛡️ **Shield Power-up** | 3 seconds of on-demand invincibility |
-| 💧 **Clear Lava Potion** | *Legendary* — clears all lava, but permanently accelerates future expansion (stackable penalty) |
+| 💧 **Clear Lava Potion** | *Legendary* — clears all lava, but each use permanently reduces the spawn interval of new patches |
+| 🌙 **Moonwalk Bonus** | Walking left without flipping the sprite = Moonwalk! Grants **+10% speed** and **+20% score rate** while active |
+| ↗️ **Diagonal Penalty** | Moving diagonally (two keys simultaneously) applies a **−10% speed** penalty |
 | 🏆 **Persistent High Score** | Saved locally to `~/.lava_highscore.txt` between sessions |
-| ✨ **Particle Effects** | Lava sparks and dust clouds under the player's feet |
+| ✨ **Particle Effects** | Lava sparks on tile ignition, dust clouds under the player's feet |
+| ⏸️ **Pause / Resume** | Full pause — timer, lava, and power-ups all freeze |
+
+<br>
 
 ### Difficulty Curve
 - Lava spreads faster every 2 minutes (capped at 3× base speed)
-- New lava patches spawn every 5–8 seconds randomly
-- Each *Clear Lava* potion collected multiplies future difficulty by ×1.4 (stackable)
-- Power-ups cannot spawn on lava tiles — they always appear on safe ground
+- New lava patches spawn every **4–7 seconds** randomly
+- The *Clear Lava* legendary potion spawns every **80–100 seconds**
+- Each *Clear Lava* potion collected **reduces the patch spawn interval by 1 second** (min 1 second) — lava keeps regenerating faster and faster
+- Power-ups and potions **never spawn on lava** — always on safe ground
 
 ---
 
-## 🏗️ Architecture
+<br>
+
+## Architecture
 
 ### The Core Philosophy: Abstraction as Documentation
 
@@ -72,7 +74,9 @@ Abstract Class     →   implements shared structure ("how, partially")
 Concrete Class     →   provides the full implementation ("how, completely")
 ```
 
-This pattern makes the codebase **self-documenting**: reading only the interfaces and abstract classes is sufficient to understand the entire system.
+This pattern makes the codebase **self-documenting**: reading only the interfaces and abstract classes is sufficient to understand the entire system — no concrete implementation needs to be read.
+
+<br>
 
 ### Package Structure
 
@@ -93,7 +97,7 @@ src/main/java/game/
 │   ├── GameEntity.java         # getPosition() + update()
 │   ├── Movable.java            # extends GameEntity — full player contract
 │   ├── HazardMap.java          # lava/hazard abstraction
-│   ├── LavaClearer.java        # optional extension for clearable hazards
+│   ├── LavaClearer.java        # optional extension for clearable hazards (ISP)
 │   ├── GameLoop.java           # start() / stop()
 │   ├── ParticleEmitter.java    # emitLavaSpark() + emitDust()
 │   ├── ScoreRepository.java    # load / save / isNewRecord
@@ -126,19 +130,19 @@ src/main/java/game/
 ├── ClearLavaPowerUp.java       # concrete — legendary
 ├── PowerUpFactory.java         # OCP factory
 │
-├── Player.java                 # implements Movable — sprite animation
+├── Player.java                 # implements Movable — sprite animation, moonwalk, diagonal
 ├── Lava.java                   # extends AbstractTileHazard, implements HazardMap + LavaClearer
 ├── ParticleSystem.java         # implements Updatable + ParticleEmitter
 ├── InputManager.java           # keyboard state array
-├── MovementSystem.java         # declarative key→action Map
+├── MovementSystem.java         # declarative key→action Map + diagonal detection
 ├── Engine.java                 # implements GameLoop
 │
-├── ScoreTracker.java           # implements Updatable — uses ScoreFormula
+├── ScoreTracker.java           # implements Updatable — ScoreFormula + moonwalk bonus + pause support
 ├── LivesManager.java           # lives counter
 ├── PowerUpManager.java         # implements Updatable — spawn, collect, status
 │
-├── Controller.java             # orchestrator — depends ONLY on interfaces
-└── MainApp.java                # JavaFX entry point — wires all dependencies
+├── Controller.java             # orchestrator — depends ONLY on interfaces + records
+└── MainApp.java                # JavaFX entry point — wires all concrete dependencies
 
 src/main/resources/
 ├── pirate_frame_0.png          # player idle
@@ -147,25 +151,29 @@ src/main/resources/
 ├── speed_powerup.png
 ├── shield_powerup.png
 ├── clear_lava_powerup.png
-└── Item_Lava_Bucket.png
+└── Item_Lava_Bucket.png        # header decoration
 ```
 
 ---
 
-## 🧱 SOLID Principles in Practice
+<br>
+
+## SOLID Principles in Practice
 
 ### Single Responsibility Principle
 `Controller` was deliberately kept as a **pure orchestrator** — it contains zero rendering code, zero score formatting, zero UI logic. Each of those concerns lives in its own class:
 
 | Class | Single Responsibility |
 |-------|-----------------------|
-| `ScoreTracker` | Compute score from elapsed time |
+| `ScoreTracker` | Compute score from elapsed time, moonwalk bonus, pause tracking |
 | `LivesManager` | Track remaining lives |
-| `PowerUpManager` | Spawn, detect, and apply power-ups |
+| `PowerUpManager` | Spawn, detect collision, and apply power-ups |
 | `HUDRenderer` | Render the heads-up display |
 | `GameOverScreen` | Render the game-over overlay |
-| `MovementSystem` | Translate keyboard input to movement |
+| `MovementSystem` | Translate keyboard input to movement + diagonal penalty |
 | `ParticleSystem` | Manage and render particles |
+
+<br>
 
 ### Open/Closed Principle
 **Adding a new power-up** requires exactly:
@@ -175,26 +183,35 @@ src/main/resources/
 
 Zero modifications to `PowerUpManager`, `Controller`, `HUDRenderer`, or any other existing class.
 
+<br>
+
 ### Liskov Substitution Principle
 `SpeedPowerUp`, `ShieldPowerUp`, and `ClearLavaPowerUp` are all used exclusively as `Collectible` throughout the system. No `instanceof` check exists anywhere outside the factory.
+
+<br>
 
 ### Interface Segregation Principle
 `LavaClearer` is deliberately **separate** from `HazardMap`. Not all hazard maps need to support clearing — this allows future `IceMap` or `AcidMap` implementations to exist without implementing `clearAndAccelerateLava()`.
 
 `GameEventListener` uses **default methods** — listeners implement only the events they care about. `HUDRenderer` handles score, lives, and power-up status. `GameOverScreen` handles only `onGameOver`. Neither knows the other exists.
 
+<br>
+
 ### Dependency Inversion Principle
-`Controller`'s field declarations:
+`Controller`'s field declarations use only interface types:
 ```java
-private final Movable    player;    // not Player
-private final HazardMap  hazardMap; // not Lava
-private final GameLoop   engine;    // not Engine
+private Movable    player;    // not Player
+private HazardMap  hazardMap; // not Lava
+private GameLoop   engine;    // not Engine
 ```
+
 `MainApp` is the **only** class that mentions concrete types — it is the single wiring point of the entire application.
 
 ---
 
-## ⚙️ Functional Programming
+<br>
+
+## Functional Programming
 
 The codebase embraces Java's functional features throughout:
 
@@ -206,6 +223,11 @@ private static final Map<Integer, Consumer<Movable>> KEY_ACTIONS = Map.of(
     83, Movable::moveDown,
     68, Movable::moveRight
 );
+
+// Diagonal penalty detection — pure functional check
+boolean diagonal = (input.isPressed(65) || input.isPressed(68))
+                && (input.isPressed(87) || input.isPressed(83));
+entity.setMovementModifier(diagonal ? 0.9 : 1.0);
 
 // Functional pipeline for power-up spawning
 private void spawn() {
@@ -220,7 +242,7 @@ ScoreFormula DEFAULT = elapsed -> (int)(elapsed * 60 + (elapsed / 60) * 60);
 // Observer pattern — fire events to all listeners with a single line
 private void fire(Consumer<GameEventListener> event) { listeners.forEach(event); }
 
-// Particle state evolution without mutation
+// Particle state evolution without mutation — record returns new instance
 public Particle move() {
     return new Particle(x + vx, y + vy, vx, vy * 0.88, life - 0.04, maxLife, type);
 }
@@ -228,11 +250,42 @@ public Particle move() {
 
 ---
 
-## 🌍 Cross-Language Portability
+<br>
+
+## Gameplay Mechanics Detail
+
+### Moonwalk Bonus
+The player sprite naturally faces right at all times. When the player moves **left**, the sprite slides backwards — an involuntary moonwalk. This visual quirk was deliberately turned into a bonus mechanic:
+- **+10% speed** while moving left
+- **+20% score rate** for all time spent moonwalking (tracked by `ScoreTracker`)
+- Displayed in the HUD as `MOONWALK!` alongside active power-ups
+
+<br>
+
+### Diagonal Penalty
+Moving in two directions simultaneously (e.g., `W + D`) applies a **−10% speed modifier**, set by `MovementSystem` via `Movable.setMovementModifier(0.9)`. Combined with the moonwalk bonus when moving left-diagonally, the net effect is approximately neutral speed.
+
+<br>
+
+### Clear Lava Potion — Stackable Penalty
+Each legendary potion collected:
+1. Instantly clears the entire lava grid
+2. Reduces `chazzeIntervalBase` by 1 second (min 1 second) — new patches regenerate more frequently
+3. Resets `gameStartTime` so lava difficulty restarts from scratch — same organic growth as game start
+
+This makes hoarding the potion increasingly risky: maps regenerate faster and faster each time.
+
+---
+
+<br>
+
+## Cross-Language Portability
 
 This is the project's most distinctive engineering achievement.
 
 The **entire abstract footprint** — all interfaces, abstract classes, and records — is sufficient to reconstruct the game in any OOP language, with the assistance of an AI model, **without reading a single line of concrete implementation**.
+
+<br>
 
 ### Why this works
 
@@ -244,10 +297,12 @@ The **entire abstract footprint** — all interfaces, abstract classes, and reco
 | `@FunctionalInterface` | lambda / callable in any language |
 | `default` methods | extension functions (Kotlin), mixin pattern (Python) |
 
+<br>
+
 ### What an AI needs to translate this project
 
 1. The 14 interface files
-2. The 2 abstract class files  
+2. The 2 abstract class files
 3. The 3 record files
 4. The `Controller` class (already depends only on interfaces)
 
@@ -255,26 +310,30 @@ The **entire abstract footprint** — all interfaces, abstract classes, and reco
 
 ---
 
-## 📊 Logic Line Count
+<br>
+
+## Logic Line Count
 
 | Area | Lines |
 |------|-------|
 | Lava spreading algorithm (`Lava.java`) | ~90 |
-| Player state machine + animation | ~80 |
+| Player state machine + animation + moonwalk/diagonal | ~90 |
 | PowerUp hierarchy (3 concrete + 2 abstract + factory) | ~70 |
 | Particle system | ~60 |
-| Controller + game loop | ~55 |
-| Records + interfaces (14 files) | ~60 |
-| Movement / Input / Engine | ~40 |
-| Score / Lives / PowerUpManager | ~50 |
+| Controller + game loop + state machine | ~60 |
+| Records + interfaces (14 files) | ~65 |
+| MovementSystem + InputManager + Engine | ~45 |
+| ScoreTracker + LivesManager + PowerUpManager | ~55 |
 | Repository | ~20 |
-| **Total** | **~525*** |
+| **Total** | **~555*** |
 
-> *Slightly above the 500-line guideline due to the particle system and legendary power-up additions made during polish phase. GUI components (`HUDRenderer`, `GameOverScreen`, `StartScreen`, `PauseScreen`, `UIFactory`, `GameColors`, `MainApp`) excluded per project guidelines.
+> *GUI components (`HUDRenderer`, `GameOverScreen`, `StartScreen`, `PauseScreen`, `UIFactory`, `GameColors`, `MainApp`) and `pom.xml` excluded per project guidelines.
 
 ---
 
-## 🔧 Build & Run
+<br>
+
+## Build & Run
 
 ### Requirements
 - Java 21+
@@ -285,31 +344,14 @@ The **entire abstract footprint** — all interfaces, abstract classes, and reco
 mvn clean javafx:run
 ```
 
-### Project was tested on
-- Windows 11 with JDK 21 (Temurin)
-- IntelliJ IDEA 2026.1 with bundled Maven 3
+### Tested on
+- Windows 11, JDK 21 (Temurin), IntelliJ IDEA 2026.1
 
 ---
 
-## 🤖 AI-Assisted Development
+<br>
 
-This project was developed using **Claude (Anthropic)** as an AI coding assistant across the entire development lifecycle:
-
-| Phase | AI Contribution |
-|-------|----------------|
-| Initial design | Game concept, class structure, SOLID application plan |
-| Iterative refactoring | SRP extraction, DIP injection, ISP with default methods |
-| Bug fixing | Z-index ordering, dimension initialization, interface mismatches |
-| Progressive abstraction | Interface + abstract class layering, `Movable`/`HazardMap`/`GameLoop` |
-| Functional patterns | `Map<KeyCode, Consumer<Movable>>`, `Optional`-based spawning, particle records |
-| Visual polish | Sprite animation, particle effects, organic lava growth |
-| Documentation | JavaDoc, class-level comments, this README |
-
-All architectural decisions were validated against course material on interfaces, abstract classes, and SOLID principles. The AI was used as a collaborative tool — every suggestion was reviewed, understood, and deliberately accepted or rejected.
-
----
-
-## 📚 References
+## References
 
 - [learn-java-javafx — course examples](https://github.com/nbicocchi/learn-java-javafx/tree/main/code)
 - [learn-java-core](https://github.com/nbicocchi/learn-java-core)
@@ -319,12 +361,3 @@ All architectural decisions were validated against course material on interfaces
 - [Refactoring Guru — Strategy Pattern](https://refactoring.guru/design-patterns/strategy)
 - [Refactoring Guru — Observer Pattern](https://refactoring.guru/design-patterns/observer)
 
----
-
-<div align="center">
-
-**Built with Java 21 · JavaFX 21 · Maven · Claude AI**
-
-*Programmazione ad Oggetti — DIEF, Università di Modena e Reggio Emilia*
-
-</div>
