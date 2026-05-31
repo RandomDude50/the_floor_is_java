@@ -30,6 +30,8 @@ public class Controller {
     private PauseScreen    pauseScreen;
     private StartScreen    startScreen;
 
+    private InputManager inputManager;
+
     private List<Updatable>         updatables;
     private List<GameEventListener> listeners;
 
@@ -57,7 +59,7 @@ public class Controller {
     private void buildGame() {
         root.getChildren().clear();
 
-        InputManager input = new InputManager();
+        inputManager = new InputManager();
 
         player    = new Player(config.spawnPosition(), config);
         hazardMap = new Lava(config.gameWidth(), config.gameHeight());
@@ -66,7 +68,7 @@ public class Controller {
         ((Lava)   hazardMap).setParticleEmitter(particles);
         ((Player) player)   .setParticleEmitter(particles);
 
-        engine         = new Engine(player, config, input);
+        engine = new Engine(player, config, inputManager);
         scoreTracker   = new ScoreTracker();
         livesManager   = new LivesManager(config.initialLives());
         powerUpManager = new PowerUpManager(root, config, player,
@@ -88,9 +90,9 @@ public class Controller {
 
         root.setOnKeyPressed(e -> {
             handleGlobalKeys(e.getCode());
-            if (state == GameState.PLAYING) input.keyPressed(e.getCode().getCode());
+            if (state == GameState.PLAYING) inputManager.keyPressed(e.getCode().getCode());
         });
-        root.setOnKeyReleased(e -> input.keyReleased(e.getCode().getCode()));
+        root.setOnKeyReleased(e -> inputManager.keyReleased(e.getCode().getCode()));
         root.setFocusTraversable(true);
         root.requestFocus();
     }
@@ -174,7 +176,9 @@ public class Controller {
                 updatables.forEach(u -> u.update(now));
 
                 // Moonwalk: notifica ScoreTracker
-                scoreTracker.setMoonwalkActive(player.isMoonwalking());
+                boolean moonwalking = inputManager.isPressed(65)   // A premuto
+                        && !inputManager.isPressed(68);  // D non premuto
+                scoreTracker.setMoonwalkActive(moonwalking);
 
                 ScoreSnapshot snap = scoreTracker.snapshot();
 
@@ -185,7 +189,7 @@ public class Controller {
                 }
 
                 fire(l -> l.onScoreUpdated(snap, highScore, sessionRecord));
-                fire(l -> l.onPowerUpStatus(buildStatusLabel()));
+                fire(l -> l.onPowerUpStatus(buildStatusLabel(moonwalking)));
 
                 if (!player.isInvincible() && hazardMap.isHazardous(player.getPosition()))
                     loseLife();
@@ -194,12 +198,12 @@ public class Controller {
         gameLoopTimer.start();
     }
 
-    private String buildStatusLabel() {
-        String powerUp   = powerUpManager.activeStatusLabel();
-        String moonwalk  = player.isMoonwalking() ? "MOONWALK!" : "";
-        if (powerUp.isEmpty()) return moonwalk;
-        if (moonwalk.isEmpty()) return powerUp;
-        return powerUp + "  " + moonwalk;
+    private String buildStatusLabel(boolean moonwalking) {
+        String powerUp = powerUpManager.activeStatusLabel();
+        String mw      = moonwalking ? "MOONWALK!" : "";
+        if (powerUp.isEmpty()) return mw;
+        if (mw.isEmpty())      return powerUp;
+        return powerUp + "  " + mw;
     }
 
     private void loseLife() {

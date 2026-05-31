@@ -13,7 +13,7 @@ public record GameConfig(
         long   powerUpSpawnMs
 ) {
     public static final GameConfig DEFAULT = new GameConfig(
-            1220, 640, 3, 3.0, 1.6, 3_000, 5_000, 10_000
+            1252, 640, 3, 3.0, 1.6, 3_000, 5_000, 10_000
     );
 
     public Position spawnPosition() {
